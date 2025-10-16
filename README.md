@@ -29,12 +29,12 @@ Browser extension that displays your Claude.ai usage limits via a dynamic icon b
 ## What You'll See
 
 ### Dynamic Icon + Badge
-- **Circular Progress**: Arc fills clockwise from top as usage increases
-- **Percentage Text**: Shows usage percentage inside circle (e.g., "25%")
-- **Badge Text**: Orange percentage badge overlays the icon (e.g., "25%")
-- **Green**: < 50% capacity
-- **Yellow**: 50-80% capacity  
-- **Red**: > 80% capacity
+- **Thermometer Bar**: Horizontal bar fills left-to-right as usage increases
+- **Claude Orange Frame**: Orange border contains the usage bar (top half of icon)
+- **Badge Text**: Orange percentage badge below the thermometer (e.g., "45%")
+- **Green Bar**: < 50% capacity
+- **Yellow Bar**: 50-80% capacity  
+- **Red Bar**: > 80% capacity
 - **Gray "!"**: Error state (check console logs)
 
 ### Hover Tooltip
@@ -51,10 +51,11 @@ Clicking the extension icon opens `https://claude.ai/settings/usage` in a new ta
 
 1. Fetches your organization ID from `claude.ai/api/bootstrap` (cached)
 2. Polls `claude.ai/api/organizations/{orgId}/usage` every 5 minutes
-3. Generates dynamic icon using OffscreenCanvas with circular progress indicator
-4. Updates icon color based on `five_hour.utilization` (percentage)
-5. Uses browser's authenticated session (cookies) - no API key needed
-6. Clicking icon opens full usage details at `claude.ai/settings/usage`
+3. Generates dynamic icon using OffscreenCanvas with thermometer bar design
+4. Updates icon bar color based on `five_hour.utilization` (percentage)
+5. Displays percentage in orange badge text below the thermometer
+6. Uses browser's authenticated session (cookies) - no API key needed
+7. Clicking icon opens full usage details at `claude.ai/settings/usage`
 
 ## Troubleshooting
 
@@ -78,9 +79,7 @@ Clicking the extension icon opens `https://claude.ai/settings/usage` in a new ta
 claude-usage-extension/
 ├── manifest.json       # Extension config (V3)
 ├── background.js       # Service worker with polling logic
-├── icon16.png         # Toolbar icon (16×16)
-├── icon48.png         # Management UI icon (48×48)
-└── icon128.png        # Chrome Web Store icon (128×128)
+└── icon128.png        # Static icon for management UI (all sizes)
 ```
 
 ## Privacy

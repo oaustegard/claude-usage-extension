@@ -2,16 +2,26 @@
 
 const POLL_INTERVAL_MINUTES = 5;
 const ALARM_NAME = 'usagePoll';
+const DEBUG = false; /* Set to true to enable debug logging */
+
+/* Debug logging helper */
+function log(...args) {
+  if (DEBUG) console.log(...args);
+}
+
+function logError(...args) {
+  if (DEBUG) console.error(...args);
+}
 
 /* Initialize on install */
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Claude Usage Monitor installed');
+  log('Claude Usage Monitor installed');
   initializeMonitoring();
 });
 
 /* Resume monitoring on startup */
 chrome.runtime.onStartup.addListener(() => {
-  console.log('Claude Usage Monitor started');
+  log('Claude Usage Monitor started');
   initializeMonitoring();
 });
 
@@ -35,11 +45,9 @@ async function initializeMonitoring() {
 }
 
 /* Listen for alarm */
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM_NAME) {
-    console.log('Polling Claude usage...');
-    fetchAndUpdateUsage();
-  }
+chrome.alarms.onAlarm.addListener(() => {
+  log('Polling Claude usage...');
+  fetchAndUpdateUsage();
 });
 
 /* Fetch usage data and update badge */
@@ -54,14 +62,8 @@ async function fetchAndUpdateUsage() {
     }
     
     /* Fetch usage data */
-    const usageUrl = `https://claude.ai/api/organizations/${orgId}/usage`;
-    const response = await fetch(usageUrl, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'accept': '*/*',
-        'content-type': 'application/json'
-      }
+    const response = await fetch(`https://claude.ai/api/organizations/${orgId}/usage`, {
+      credentials: 'include'
     });
     
     if (!response.ok) {
@@ -69,13 +71,13 @@ async function fetchAndUpdateUsage() {
     }
     
     const data = await response.json();
-    console.log('Usage data:', data);
-    
+    log('Usage data:', data);
+
     /* Update badge with data */
     updateBadge(data);
-    
+
   } catch (error) {
-    console.error('Failed to fetch usage:', error);
+    logError('Failed to fetch usage:', error);
     updateBadgeError(error.message);
   }
 }
@@ -86,19 +88,14 @@ async function getOrganizationId() {
     /* Check cache first */
     const cached = await chrome.storage.local.get('orgId');
     if (cached.orgId) {
-      console.log('Using cached org ID:', cached.orgId);
+      log('Using cached org ID:', cached.orgId);
       return cached.orgId;
     }
-    
+
     /* Fetch from bootstrap API */
-    console.log('Fetching org ID from bootstrap...');
+    log('Fetching org ID from bootstrap...');
     const response = await fetch('https://claude.ai/api/bootstrap', {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'accept': '*/*',
-        'content-type': 'application/json'
-      }
+      credentials: 'include'
     });
     
     if (!response.ok) {
@@ -116,66 +113,54 @@ async function getOrganizationId() {
     
     /* Cache it */
     await chrome.storage.local.set({ orgId });
-    console.log('Cached org ID:', orgId);
-    
+    log('Cached org ID:', orgId);
+
     return orgId;
-    
+
   } catch (error) {
-    console.error('Failed to get org ID:', error);
+    logError('Failed to get org ID:', error);
     return null;
   }
 }
 
-/* Generate canvas-based icon with circular progress indicator */
+/* Generate canvas-based icon with thermometer bar */
 function generateIcon(percentage, size) {
   const canvas = new OffscreenCanvas(size, size);
   const ctx = canvas.getContext('2d');
-  
-  /* Determine color based on percentage */
-  let progressColor;
-  if (percentage < 50) {
-    progressColor = '#10b981'; /* Green */
-  } else if (percentage < 80) {
-    progressColor = '#f59e0b'; /* Yellow */
-  } else {
-    progressColor = '#ef4444'; /* Red */
+
+  /* Determine fill color based on percentage */
+  const fillColor = percentage < 50 ? '#10b981' : percentage < 80 ? '#f59e0b' : '#ef4444';
+  const claudeOrange = '#D97706';
+
+  /* Scale dimensions based on icon size */
+  const padding = size <= 16 ? 1 : 2;
+  const borderWidth = size <= 16 ? 1 : 2;
+
+  /* Frame dimensions (top 40% of icon) */
+  const frameX = padding;
+  const frameY = padding;
+  const frameWidth = size - (padding * 2);
+  const frameHeight = Math.floor(size * 0.4);
+
+  /* Draw Claude orange frame */
+  ctx.fillStyle = claudeOrange;
+  ctx.fillRect(frameX, frameY, frameWidth, borderWidth);
+  ctx.fillRect(frameX, frameY, borderWidth, frameHeight);
+  ctx.fillRect(frameX + frameWidth - borderWidth, frameY, borderWidth, frameHeight);
+  ctx.fillRect(frameX, frameY + frameHeight - borderWidth, frameWidth, borderWidth);
+
+  /* Draw inner thermometer bar fill */
+  const barX = frameX + borderWidth;
+  const barY = frameY + borderWidth;
+  const barMaxWidth = frameWidth - (borderWidth * 2);
+  const barHeight = frameHeight - (borderWidth * 2);
+  const barWidth = Math.max(1, (barMaxWidth * percentage) / 100);
+
+  if (barHeight > 0 && barWidth > 0) {
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(barX, barY, barWidth, barHeight);
   }
-  
-  const centerX = size / 2;
-  const centerY = size / 2;
-  const radius = size / 2 - 2;
-  const lineWidth = Math.max(2, size / 8);
-  
-  /* Clear canvas */
-  ctx.clearRect(0, 0, size, size);
-  
-  /* Draw background circle */
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-  ctx.strokeStyle = '#e5e7eb';
-  ctx.lineWidth = lineWidth;
-  ctx.stroke();
-  
-  /* Draw progress arc */
-  const startAngle = -Math.PI / 2; /* Start at top */
-  const endAngle = startAngle + (percentage / 100) * 2 * Math.PI;
-  
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-  ctx.strokeStyle = progressColor;
-  ctx.lineWidth = lineWidth;
-  ctx.lineCap = 'round';
-  ctx.stroke();
-  
-  /* Draw percentage text (only for larger sizes) */
-  if (size >= 32) {
-    ctx.fillStyle = '#1f2937';
-    ctx.font = `bold ${size / 3}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${percentage}%`, centerX, centerY);
-  }
-  
+
   return ctx.getImageData(0, 0, size, size);
 }
 
@@ -215,57 +200,21 @@ function updateBadge(data) {
   chrome.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] });
   
   /* Format reset time for tooltip */
-  let resetTimeStr = 'Unknown';
-  if (resetsAt) {
-    const resetDate = new Date(resetsAt);
-    resetTimeStr = resetDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  }
+  const resetTimeStr = resetsAt
+    ? new Date(resetsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    : 'Unknown';
   
   /* Set detailed tooltip */
   const title = `Claude Usage Monitor\n${percentage}% used\nResets at ${resetTimeStr}`;
   chrome.action.setTitle({ title });
-  
-  console.log(`Icon updated: ${percentage}% used, resets at ${resetTimeStr}`);
+
+  log(`Icon updated: ${percentage}% used, resets at ${resetTimeStr}`);
 }
 
 /* Update badge to show error state */
 function updateBadgeError(message) {
-  /* Generate gray error icon */
-  const size = 48;
-  const canvas = new OffscreenCanvas(size, size);
-  const ctx = canvas.getContext('2d');
-  
-  const centerX = size / 2;
-  const centerY = size / 2;
-  const radius = size / 2 - 2;
-  
-  /* Draw gray circle */
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-  ctx.fillStyle = '#6b7280';
-  ctx.fill();
-  
-  /* Draw exclamation mark */
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `bold ${size / 2}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('!', centerX, centerY);
-  
-  const errorIcon = ctx.getImageData(0, 0, size, size);
-  
-  chrome.action.setIcon({
-    imageData: {
-      16: errorIcon,
-      32: errorIcon,
-      48: errorIcon
-    }
-  });
-  
+  /* Use static error icon */
+  chrome.action.setIcon({ path: 'error-icon.png' });
   chrome.action.setBadgeText({ text: '' });
-  chrome.action.setTitle({ title: `Claude Usage Monitor\nError: ${message}` });
+  chrome.action.setTitle({ title: `Make sure you are logged in to Claude.ai!\nError: ${message}` });
 }
