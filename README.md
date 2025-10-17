@@ -24,7 +24,7 @@ Browser extension that displays your Claude.ai usage limits via a dynamic icon b
 
 1. Visit `https://claude.ai` (must be logged in)
 2. Extension fetches your org ID automatically
-3. Badge updates within 5 minutes (or reload extension to force immediate update)
+3. Badge updates within 5 minutes (or reload extension to force immediate update - you can also edit the `POLL_INTERVAL_MINUTES` value in background.js - can be as low as 1)  
 
 ## What You'll See
 
@@ -79,7 +79,8 @@ Clicking the extension icon opens `https://claude.ai/settings/usage` in a new ta
 claude-usage-extension/
 ├── manifest.json       # Extension config (V3)
 ├── background.js       # Service worker with polling logic
-└── icon128.png        # Static icon for management UI (all sizes)
+├── icon128.png         # Static icon for management UI (all sizes)
+└── error-icon.png      # Icon for when there's an error
 ```
 
 ## Privacy
@@ -91,13 +92,7 @@ claude-usage-extension/
 
 ## Limitations
 
-- Polls every 5 minutes (can't be faster due to Chrome alarm limitations)
+- Polls every 5 minutes (can't be faster than 1 minute due to Chrome alarm limitations)
 - Only monitors `five_hour` window (other windows like `seven_day` not displayed)
 - Badge text may truncate on some browsers if percentage > 99%
 
-## Future Enhancements
-
-- Popup UI showing all rate limit windows
-- Historical usage graphs
-- Notifications when approaching limits
-- Per-project usage breakdowns
