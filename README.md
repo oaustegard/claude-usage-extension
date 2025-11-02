@@ -83,6 +83,24 @@ claude-usage-extension/
 └── error-icon.png      # Icon for when there's an error
 ```
 
+## Releasing a New Version
+
+This repository uses a GitHub Action to automatically create a release and package the extension into a `claude-usage-monitor.zip` file.
+
+To create a new release:
+
+1.  **Commit your changes:** Make sure all your changes are committed to the `main` branch.
+2.  **Tag the new version:** Use a tag that starts with `v`, for example:
+    ```bash
+    git tag v1.0.1
+    ```
+3.  **Push the tag:**
+    ```bash
+    git push origin v1.0.1
+    ```
+
+Pushing the tag will trigger the GitHub Action, which will create a new release on the Releases page with the packaged `.zip` file.
+
 ## Privacy
 
 - All requests made directly from your browser to claude.ai
