@@ -1,16 +1,16 @@
 /* Claude Usage Monitor - Background Service Worker */
 
-const POLL_INTERVAL_MINUTES = 5;
+const POLL_INTERVAL_MINUTES = Math.max(1, 5); /* Chrome minimum is 1 minute */
 const ALARM_NAME = 'usagePoll';
-const DEBUG = false; /* Set to true to enable debug logging */
+const HIGH_USAGE_THRESHOLD = 80; /* Percentage to trigger notification */
 
-/* Debug logging helper */
+/* Logging helpers */
 function log(...args) {
-  if (DEBUG) console.log(...args);
+  console.log('[Claude Usage]', ...args);
 }
 
 function logError(...args) {
-  if (DEBUG) console.error(...args);
+  console.error('[Claude Usage]', ...args);
 }
 
 /* Initialize on install */
@@ -55,26 +55,31 @@ async function fetchAndUpdateUsage() {
   try {
     /* Get org ID (cached or fetch fresh) */
     const orgId = await getOrganizationId();
-    
+
     if (!orgId) {
       updateBadgeError('No org ID');
       return;
     }
-    
+
     /* Fetch usage data */
     const response = await fetch(`https://claude.ai/api/organizations/${orgId}/usage`, {
       credentials: 'include'
     });
-    
+
     if (!response.ok) {
+      /* Clear org ID cache on auth errors */
+      if (response.status === 401 || response.status === 403) {
+        log('Auth error, clearing org ID cache');
+        await chrome.storage.local.remove('orgId');
+      }
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
     log('Usage data:', data);
 
     /* Update badge with data */
-    updateBadge(data);
+    await updateBadge(data);
 
   } catch (error) {
     logError('Failed to fetch usage:', error);
@@ -97,8 +102,12 @@ async function getOrganizationId() {
     const response = await fetch('https://claude.ai/api/bootstrap', {
       credentials: 'include'
     });
-    
+
     if (!response.ok) {
+      /* Clear cache on auth errors */
+      if (response.status === 401 || response.status === 403) {
+        await chrome.storage.local.remove('orgId');
+      }
       throw new Error(`Bootstrap failed: HTTP ${response.status}`);
     }
     
@@ -165,16 +174,19 @@ function generateIcon(percentage, size) {
 }
 
 /* Update icon and badge with usage data */
-function updateBadge(data) {
+async function updateBadge(data) {
   const fiveHour = data.five_hour;
-  
+
   if (!fiveHour) {
     updateBadgeError('No data');
     return;
   }
-  
+
   const percentage = fiveHour.utilization || 0;
   const resetsAt = fiveHour.resets_at;
+
+  /* Check if we should notify about high usage */
+  await checkAndNotifyHighUsage(percentage);
   
   /* Generate dynamic icons at multiple sizes */
   const icon16 = generateIcon(percentage, 16);
@@ -209,6 +221,35 @@ function updateBadge(data) {
   chrome.action.setTitle({ title });
 
   log(`Icon updated: ${percentage}% used, resets at ${resetTimeStr}`);
+}
+
+/* Check and notify if usage is high */
+async function checkAndNotifyHighUsage(percentage) {
+  if (percentage < HIGH_USAGE_THRESHOLD) {
+    /* Reset notification flag when below threshold */
+    await chrome.storage.local.set({ notifiedHighUsage: false });
+    return;
+  }
+
+  /* Check if we've already notified */
+  const { notifiedHighUsage } = await chrome.storage.local.get('notifiedHighUsage');
+
+  if (notifiedHighUsage) {
+    return; /* Already notified for this high usage period */
+  }
+
+  /* Show notification */
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icon.png',
+    title: 'Claude Usage Warning',
+    message: `You've used ${percentage}% of your Claude limit. Usage will reset soon.`,
+    priority: 2
+  });
+
+  /* Mark as notified */
+  await chrome.storage.local.set({ notifiedHighUsage: true });
+  log(`High usage notification sent: ${percentage}%`);
 }
 
 /* Update badge to show error state */

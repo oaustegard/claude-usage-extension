@@ -5,7 +5,8 @@
   "description": "Monitor Claude.ai usage limits via dynamic icon badge",
   "permissions": [
     "storage",
-    "alarms"
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
     "https://claude.ai/*"

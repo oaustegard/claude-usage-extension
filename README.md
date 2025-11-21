@@ -4,7 +4,7 @@ Browser extension that displays your Claude.ai usage limits via a dynamic icon b
 
 ## Features
 
-- **Dynamic Visual Icon**: Circular progress indicator shows usage percentage
+- **Dynamic Visual Icon**: Horizontal thermometer bar shows usage percentage
 - **Color-Coded Status**: Green → Yellow → Red as you approach limits
 - **Auto-Refresh**: Updates every 5 minutes
 - **Hover Details**: Tooltip shows usage percentage + reset time
@@ -79,7 +79,8 @@ Clicking the extension icon opens `https://claude.ai/settings/usage` in a new ta
 claude-usage-extension/
 ├── manifest.json       # Extension config (V3)
 ├── background.js       # Service worker with polling logic
-└── icon128.png        # Static icon for management UI (all sizes)
+├── icon.png           # Static icon for management UI
+└── error-icon.png     # Error state icon
 ```
 
 ## Privacy
